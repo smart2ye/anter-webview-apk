@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">ANTER</string>
+    <string name="loading">جارٍ التحميل…</string>
+    <string name="offline_title">لا يوجد اتصال بالإنترنت</string>
+    <string name="offline_message">تحقق من اتصالك وأعد المحاولة.</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="exit_confirm">اضغط مرة أخرى للخروج</string>
+</resources>
