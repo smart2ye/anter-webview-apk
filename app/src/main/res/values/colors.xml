@@ -3,4 +3,5 @@
     <color name="anter_primary_dark">#0B5ED7</color>
     <color name="anter_bg">#FFFFFF</color>
     <color name="white">#FFFFFF</color>
+    <color name="ic_launcher_background">#000726</color>
 </resources>
