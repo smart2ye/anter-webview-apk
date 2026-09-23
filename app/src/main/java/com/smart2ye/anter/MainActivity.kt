@@ -72,6 +72,12 @@ class MainActivity : AppCompatActivity() {
         requestBasePermissions()
         configureWebView()
 
+        // جسر قراءة جهات الاتصال (متاح في JS: window.AnterContacts)
+        webView.addJavascriptInterface(
+            ContactsBridge(this, webView),
+            "AnterContacts"
+        )
+
         // Pull-to-refresh يعمل فقط عندما يكون WebView في أعلى الصفحة
         swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.scrollY > 0 }
         swipeRefresh.setColorSchemeColors(
@@ -192,6 +198,21 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == ContactsBridge.PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() &&
+                          grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
+            // نُبلّغ الجسر بالنتيجة (نستخدمه للبحث)
+            val bridge = ContactsBridge(this, webView)
+            bridge.onPermissionResult(granted)
         }
     }
 
