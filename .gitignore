@@ -10,3 +10,8 @@ captures/
 *.apk
 *.aab
 !debug.keystore
+
+# نسخ احتياطية
+*.bak
+*.bak_*
+_backup/
