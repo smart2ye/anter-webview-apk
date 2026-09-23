@@ -72,19 +72,7 @@ class MainActivity : AppCompatActivity() {
         requestBasePermissions()
         configureWebView()
 
-        // Pull-to-refresh يعمل فقط عندما يكون WebView في أعلى الصفحة
-        swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.scrollY > 0 }
-        swipeRefresh.setColorSchemeColors(
-            androidx.core.content.ContextCompat.getColor(this, R.color.anter_primary),
-            androidx.core.content.ContextCompat.getColor(this, R.color.anter_primary_dark)
-        )
-        swipeRefresh.setProgressBackgroundColorSchemeColor(0xFFFFFFFF.toInt())
-        swipeRefresh.setDistanceToTriggerSync(280)
-        swipeRefresh.setOnRefreshListener {
-            webView.reload()
-            // احتياط: إن لم يُستدعَ onPageFinished، أنهِ المؤشر خلال 5 ثوانٍ
-            webView.postDelayed({ swipeRefresh.isRefreshing = false }, 5000)
-        }
+        swipeRefresh.setOnRefreshListener { webView.reload() }
 
         webView.loadUrl(START_URL)
 
@@ -133,8 +121,7 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
         webView.isScrollbarFadingEnabled = true
-        // Over-scroll معطّل بصريًا، لكن نُبقي كشف السكرول ليعمل Pull-to-refresh
-        webView.overScrollMode = View.OVER_SCROLL_ALWAYS
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -153,17 +140,6 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 swipeRefresh.isRefreshing = false
-            }
-
-            override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: android.webkit.WebResourceError?
-            ) {
-                super.onReceivedError(view, request, error)
-                if (request?.isForMainFrame == true) {
-                    swipeRefresh.isRefreshing = false
-                }
             }
         }
 
