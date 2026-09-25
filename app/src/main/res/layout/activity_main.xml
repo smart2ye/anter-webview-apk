@@ -26,13 +26,15 @@
 
         <ImageButton
             android:id="@+id/btnServerSettings"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="8dp"
-            android:background="@android:color/transparent"
-            android:alpha="0.35"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom|right"
+            android:layout_marginBottom="72dp"
+            android:layout_marginRight="16dp"
+            android:background="@drawable/bg_circle_button"
+            android:elevation="6dp"
+            android:alpha="0.95"
+            android:padding="10dp"
             android:contentDescription="إعدادات الخادم"
             android:src="@android:drawable/ic_menu_manage"
             android:tint="@color/anter_primary_dark" />
