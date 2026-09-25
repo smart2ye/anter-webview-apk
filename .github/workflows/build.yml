@@ -30,6 +30,16 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Decode keystore
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "ERROR: KEYSTORE_BASE64 secret is missing"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/keys/release.jks"
+          ls -la "$RUNNER_TEMP/keys/"
+
       - name: Read version from gradle
         id: version
         run: |
@@ -37,21 +47,33 @@ jobs:
           echo "VERSION=$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Build Release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/keys/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Upload Debug APK
+      - name: Verify signing
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          echo "APK: $APK"
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" || true
+
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: ANTER-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: ANTER-release
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 60
 
       - name: Prepare release file
         run: |
           mkdir -p release-out
-          cp app/build/outputs/apk/debug/app-debug.apk release-out/ANTER_app.apk
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          cp "$APK" release-out/ANTER_app.apk
           ls -la release-out/
 
       - name: Publish versioned release
@@ -61,7 +83,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: "ANTER ${{ steps.version.outputs.VERSION }}"
           body: |
-            آخر بناء تلقائي من فرع main.
+            إصدار موقّع من فرع main.
             commit: ${{ github.sha }}
           files: release-out/ANTER_app.apk
           make_latest: true
