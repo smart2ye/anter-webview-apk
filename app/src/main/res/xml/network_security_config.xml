@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- الافتراضي: HTTPS فقط -->
     <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Production: HTTPS فقط -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">anter-1.onrender.com</domain>
+    </domain-config>
+
+    <!-- خوادم محلية للتطوير: HTTP مسموح -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 </network-security-config>
