@@ -1,13 +1,19 @@
 package com.smart2ye.anter
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -16,12 +22,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.FrameLayout
-import androidx.appcompat.app.AlertDialog
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -32,11 +38,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private lateinit var contactsBridge: ContactsBridge
 
     companion object {
         private const val DEFAULT_START_URL = "https://anter-1.onrender.com/"
         private const val PREFS_NAME = "anter_prefs"
         private const val KEY_SERVER_URL = "server_url"
+        private const val APP_VERSION = "1.0.8"
     }
 
     private fun getSavedStartUrl(): String {
@@ -72,7 +80,6 @@ class MainActivity : AppCompatActivity() {
 
     private val permissionLauncher: ActivityResultLauncher<Array<String>> =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-            // WebView يتعامل مع النتائج عبر onPermissionRequest إذا سبق منحها
             if (grants.values.any { !it }) {
                 Toast.makeText(this, "بعض الصلاحيات مرفوضة — قد لا تعمل بعض الميزات.", Toast.LENGTH_SHORT).show()
             }
@@ -88,30 +95,25 @@ class MainActivity : AppCompatActivity() {
         swipeRefresh = findViewById(R.id.swipeRefresh)
         progressBar = findViewById(R.id.progressBar)
 
+        // نسخة واحدة من الجسر (كان الخطأ: نسختان)
+        contactsBridge = ContactsBridge(this, webView)
+        webView.addJavascriptInterface(contactsBridge, "AnterContacts")
+
         requestBasePermissions()
         configureWebView()
 
-        // جسر قراءة جهات الاتصال (متاح في JS: window.AnterContacts)
-        webView.addJavascriptInterface(
-            ContactsBridge(this, webView),
-            "AnterContacts"
-        )
-
-        // Pull-to-refresh يعمل فقط عندما يكون WebView في أعلى الصفحة
         swipeRefresh.setOnChildScrollUpCallback { _, _ -> webView.scrollY > 0 }
         swipeRefresh.setColorSchemeColors(
             androidx.core.content.ContextCompat.getColor(this, R.color.anter_primary),
-            androidx.core.content.ContextCompat.getColor(this, R.color.anter_primary_dark)
+            androidx.core.content.ContextCompat.getColor(this, R.color.anter_cyan)
         )
         swipeRefresh.setProgressBackgroundColorSchemeColor(0xFFFFFFFF.toInt())
         swipeRefresh.setDistanceToTriggerSync(280)
         swipeRefresh.setOnRefreshListener {
             webView.reload()
-            // احتياط: إن لم يُستدعَ onPageFinished، أنهِ المؤشر خلال 5 ثوانٍ
             webView.postDelayed({ swipeRefresh.isRefreshing = false }, 5000)
         }
 
-        // زر إعدادات الخادم (طويل الضغط = مسح العنوان المخصص والعودة للافتراضي)
         findViewById<android.widget.ImageButton>(R.id.btnServerSettings).setOnClickListener {
             showServerDialog()
         }
@@ -129,8 +131,16 @@ class MainActivity : AppCompatActivity() {
                 if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
+                    // تأكيد الخروج بدل الخروج الفوري
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("خروج")
+                        .setMessage("هل تريد إغلاق ANTER؟")
+                        .setPositiveButton("خروج") { _, _ ->
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                        }
+                        .setNegativeButton("إلغاء", null)
+                        .show()
                 }
             }
         })
@@ -179,11 +189,11 @@ class MainActivity : AppCompatActivity() {
     private fun requestBasePermissions() {
         val needed = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            needed += android.Manifest.permission.POST_NOTIFICATIONS
+            needed += Manifest.permission.POST_NOTIFICATIONS
         }
-        needed += android.Manifest.permission.CAMERA
-        needed += android.Manifest.permission.RECORD_AUDIO
-        needed += android.Manifest.permission.MODIFY_AUDIO_SETTINGS
+        needed += Manifest.permission.CAMERA
+        needed += Manifest.permission.RECORD_AUDIO
+        needed += Manifest.permission.MODIFY_AUDIO_SETTINGS
         permissionLauncher.launch(needed.toTypedArray())
     }
 
@@ -203,23 +213,31 @@ class MainActivity : AppCompatActivity() {
         settings.displayZoomControls = false
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        settings.userAgentString = settings.userAgentString + " ANTERApp/1.0"
+        settings.javaScriptCanOpenWindowsAutomatically = true
+        settings.setSupportMultipleWindows(false)
+        settings.userAgentString = settings.userAgentString + " ANTERApp/$APP_VERSION"
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
         webView.isScrollbarFadingEnabled = true
-        // Over-scroll معطّل بصريًا، لكن نُبقي كشف السكرول ليعمل Pull-to-refresh
-        webView.overScrollMode = View.OVER_SCROLL_ALWAYS
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
+                val scheme = url.scheme?.lowercase() ?: ""
                 val host = url.host ?: return false
 
-                // المضيفات المسموح بها داخل WebView: onrender + الخادم المحفوظ
+                // schemes خاصة — افتحها في التطبيق المناسب
+                if (scheme == "mailto" || scheme == "tel" || scheme == "sms" ||
+                    scheme == "whatsapp" || scheme == "intent" ||
+                    scheme == "tg" || scheme == "market") {
+                    return openExternal(url)
+                }
+
                 val savedHost = try {
-                    android.net.Uri.parse(getSavedStartUrl()).host
+                    Uri.parse(getSavedStartUrl()).host
                 } catch (_: Exception) { null }
 
                 val allowed = host.endsWith("onrender.com") ||
@@ -231,16 +249,14 @@ class MainActivity : AppCompatActivity() {
                 return if (allowed) {
                     false
                 } else {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, url))
-                    } catch (_: Exception) {}
-                    true
+                    openExternal(url)
                 }
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 swipeRefresh.isRefreshing = false
+                progressBar.visibility = View.GONE
             }
 
             override fun onReceivedError(
@@ -251,6 +267,11 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     swipeRefresh.isRefreshing = false
+                    Toast.makeText(
+                        this@MainActivity,
+                        "تعذر الاتصال. تحقق من الشبكة.",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
@@ -263,6 +284,14 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread { request.grant(request.resources) }
+            }
+
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String,
+                callback: GeolocationPermissions.Callback
+            ) {
+                // نرفض geolocation دائمًا (لا نحتاجه في ANTER)
+                callback.invoke(origin, false, false)
             }
 
             override fun onShowFileChooser(
@@ -281,6 +310,42 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        // تنزيل APK من صفحة الهبوط
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
+            try {
+                val request = DownloadManager.Request(Uri.parse(url))
+                request.setMimeType(mimeType)
+                request.addRequestHeader("User-Agent", userAgent)
+                request.addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url))
+                request.setDescription("جارٍ التنزيل...")
+                val filename = URLUtil.guessFileName(url, contentDisposition, mimeType)
+                request.setTitle(filename)
+                request.allowScanningByMediaScanner()
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+
+                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                dm.enqueue(request)
+                Toast.makeText(this, "بدأ التنزيل: $filename", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                // إن فشل التنزيل الداخلي، افتح المتصفح
+                try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private fun openExternal(url: Uri): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, url).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            true
+        } catch (_: Exception) {
+            Toast.makeText(this, "لا يوجد تطبيق يفتح هذا الرابط.", Toast.LENGTH_SHORT).show()
+            true
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -292,24 +357,12 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == ContactsBridge.PERMISSION_REQUEST_CODE) {
             val granted = grantResults.isNotEmpty() &&
                           grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
-            // نُبلّغ الجسر بالنتيجة (نستخدمه للبحث)
-            val bridge = ContactsBridge(this, webView)
-            bridge.onPermissionResult(granted)
+            // نستخدم نفس النسخة (كان الخطأ: نسخة جديدة)
+            contactsBridge.onPermissionResult(granted)
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        webView.onPause()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        webView.onResume()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        webView.destroy()
-    }
+    override fun onPause() { super.onPause(); webView.onPause() }
+    override fun onResume() { super.onResume(); webView.onResume() }
+    override fun onDestroy() { super.onDestroy(); webView.destroy() }
 }
