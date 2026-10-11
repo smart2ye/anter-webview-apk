@@ -96,7 +96,9 @@ class MainActivity : AppCompatActivity() {
             webView.postDelayed({ swipeRefresh.isRefreshing = false }, 5000)
         }
 
-        webView.loadUrl(DEFAULT_START_URL)
+        val startUrl = intent?.data?.takeIf { it.host == "anter-1.onrender.com" }?.toString()
+            ?: DEFAULT_START_URL
+        webView.loadUrl(startUrl)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -127,6 +129,14 @@ class MainActivity : AppCompatActivity() {
         needed += Manifest.permission.RECORD_AUDIO
         needed += Manifest.permission.MODIFY_AUDIO_SETTINGS
         permissionLauncher.launch(needed.toTypedArray())
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.takeIf { it.host == "anter-1.onrender.com" }?.let {
+            webView.loadUrl(it.toString())
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
