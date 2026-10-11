@@ -20,14 +20,12 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.ProgressBar
+import androidx.appcompat.app.AlertDialog
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -42,23 +40,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_START_URL = "https://anter-1.onrender.com/"
-        private const val PREFS_NAME = "anter_prefs"
-        private const val KEY_SERVER_URL = "server_url"
-        private const val APP_VERSION = "1.0.8"
-    }
-
-    private fun getSavedStartUrl(): String {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val url = prefs.getString(KEY_SERVER_URL, null)?.trim().orEmpty()
-        return if (url.isNotEmpty()) url else DEFAULT_START_URL
-    }
-
-    private fun saveStartUrl(url: String) {
-        val normalized = if (url.endsWith("/")) url else "$url/"
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .putString(KEY_SERVER_URL, normalized)
-            .apply()
+        private const val APP_VERSION = "1.0.9"
     }
 
     private val fileChooserLauncher: ActivityResultLauncher<Intent> =
@@ -114,17 +96,7 @@ class MainActivity : AppCompatActivity() {
             webView.postDelayed({ swipeRefresh.isRefreshing = false }, 5000)
         }
 
-        findViewById<android.widget.ImageButton>(R.id.btnServerSettings).setOnClickListener {
-            showServerDialog()
-        }
-        findViewById<android.widget.ImageButton>(R.id.btnServerSettings).setOnLongClickListener {
-            saveStartUrl(DEFAULT_START_URL)
-            Toast.makeText(this, "تمت العودة إلى الخادم الافتراضي.", Toast.LENGTH_SHORT).show()
-            webView.loadUrl(DEFAULT_START_URL)
-            true
-        }
-
-        webView.loadUrl(getSavedStartUrl())
+        webView.loadUrl(DEFAULT_START_URL)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -144,46 +116,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
-    }
-
-    private fun showServerDialog() {
-        val current = getSavedStartUrl()
-        val input = EditText(this).apply {
-            hint = "https://anter-1.onrender.com/"
-            setText(current)
-            setSelection(text.length)
-        }
-
-        val container = FrameLayout(this).apply {
-            val pad = (16 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad / 2, pad, 0)
-            addView(input)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("عنوان الخادم")
-            .setMessage("اتركه فارغًا للعودة إلى الخادم الافتراضي.")
-            .setView(container)
-            .setPositiveButton("حفظ") { _, _ ->
-                val value = input.text.toString().trim()
-                if (value.isEmpty()) {
-                    saveStartUrl(DEFAULT_START_URL)
-                    Toast.makeText(this, "تمت العودة إلى الخادم الافتراضي.", Toast.LENGTH_SHORT).show()
-                    webView.loadUrl(DEFAULT_START_URL)
-                } else {
-                    val normalized = if (value.endsWith("/")) value else "$value/"
-                    saveStartUrl(normalized)
-                    Toast.makeText(this, "جارٍ الاتصال بـ $normalized", Toast.LENGTH_SHORT).show()
-                    webView.loadUrl(normalized)
-                }
-            }
-            .setNegativeButton("إلغاء", null)
-            .setNeutralButton("افتراضي") { _, _ ->
-                saveStartUrl(DEFAULT_START_URL)
-                Toast.makeText(this, "تمت العودة إلى الافتراضي.", Toast.LENGTH_SHORT).show()
-                webView.loadUrl(DEFAULT_START_URL)
-            }
-            .show()
     }
 
     private fun requestBasePermissions() {
@@ -237,7 +169,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val savedHost = try {
-                    Uri.parse(getSavedStartUrl()).host
+                    Uri.parse(DEFAULT_START_URL).host
                 } catch (_: Exception) { null }
 
                 val allowed = host.endsWith("onrender.com") ||
