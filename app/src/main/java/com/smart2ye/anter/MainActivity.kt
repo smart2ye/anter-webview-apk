@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_START_URL = "https://anter-1.onrender.com/"
-        private const val APP_VERSION = "1.0.9"
+        private const val APP_VERSION = "1.0.10"
     }
 
     private val fileChooserLauncher: ActivityResultLauncher<Intent> =
