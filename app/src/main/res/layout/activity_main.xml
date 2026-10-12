@@ -18,10 +18,12 @@
             android:id="@+id/progressBar"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="3dp"
+            android:layout_height="6dp"
             android:layout_gravity="top"
             android:max="100"
-            android:progressTint="@color/anter_primary"
+            android:progressTint="@color/anter_cyan"
+            android:progressBackgroundTint="#1AFFFFFF"
+            android:elevation="6dp"
             android:visibility="gone" />
 
     </FrameLayout>

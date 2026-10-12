@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_START_URL = "https://anter-1.onrender.com/"
-        private const val APP_VERSION = "1.0.10"
+        private const val APP_VERSION = "1.0.11"
     }
 
     private val fileChooserLauncher: ActivityResultLauncher<Intent> =
@@ -99,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         val startUrl = intent?.data?.takeIf { it.host == "anter-1.onrender.com" }?.toString()
             ?: DEFAULT_START_URL
         webView.loadUrl(startUrl)
+        startNotifService()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -129,6 +130,17 @@ class MainActivity : AppCompatActivity() {
         needed += Manifest.permission.RECORD_AUDIO
         needed += Manifest.permission.MODIFY_AUDIO_SETTINGS
         permissionLauncher.launch(needed.toTypedArray())
+    }
+
+    private fun startNotifService() {
+        try {
+            val i = Intent(this, NotificationService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(i)
+            } else {
+                startService(i)
+            }
+        } catch (_: Exception) {}
     }
 
     override fun onNewIntent(intent: Intent) {
