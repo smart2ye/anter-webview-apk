@@ -22,6 +22,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import androidx.appcompat.app.AlertDialog
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
@@ -40,7 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_START_URL = "https://anter-1.onrender.com/"
-        private const val APP_VERSION = "1.0.11"
+        private const val APP_VERSION = "1.0.12"
     }
 
     private val fileChooserLauncher: ActivityResultLauncher<Intent> =
@@ -100,6 +103,7 @@ class MainActivity : AppCompatActivity() {
             ?: DEFAULT_START_URL
         webView.loadUrl(startUrl)
         startNotifService()
+        webView.postDelayed({ checkForUpdates() }, 3000)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -130,6 +134,56 @@ class MainActivity : AppCompatActivity() {
         needed += Manifest.permission.RECORD_AUDIO
         needed += Manifest.permission.MODIFY_AUDIO_SETTINGS
         permissionLauncher.launch(needed.toTypedArray())
+    }
+
+    private fun checkForUpdates() {
+        Thread {
+            try {
+                val url = URL("https://api.github.com/repos/smart2ye/anter-webview-apk/releases/latest")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/vnd.github+json")
+                conn.setRequestProperty("User-Agent", "ANTERApp/$APP_VERSION")
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                if (conn.responseCode != 200) { conn.disconnect(); return@Thread }
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+                val tag = JSONObject(body).optString("tag_name", "").trimStart('v', 'V')
+                if (tag.isBlank()) return@Thread
+                if (isNewer(tag, APP_VERSION)) {
+                    runOnUiThread { showUpdateDialog(tag) }
+                }
+            } catch (_: Exception) {}
+        }.start()
+    }
+
+    private fun isNewer(remote: String, local: String): Boolean {
+        val r = remote.split('.').mapNotNull { it.toIntOrNull() }
+        val l = local.split('.').mapNotNull { it.toIntOrNull() }
+        for (i in 0 until maxOf(r.size, l.size)) {
+            val rv = r.getOrElse(i) { 0 }
+            val lv = l.getOrElse(i) { 0 }
+            if (rv > lv) return true
+            if (rv < lv) return false
+        }
+        return false
+    }
+
+    private fun showUpdateDialog(newVersion: String) {
+        AlertDialog.Builder(this)
+            .setTitle("تحديث متوفر")
+            .setMessage("يتوفر إصدار جديد من ANTER ($newVersion).\n\nنوصي بالتحديث للحصول على آخر الميزات والتحسينات.")
+            .setPositiveButton("تحميل") { _, _ ->
+                try {
+                    val i = Intent(Intent.ACTION_VIEW, Uri.parse(
+                        "https://github.com/smart2ye/anter-webview-apk/releases/latest/download/ANTER_app.apk"
+                    ))
+                    startActivity(i)
+                } catch (_: Exception) {}
+            }
+            .setNegativeButton("لاحقاً", null)
+            .show()
     }
 
     private fun startNotifService() {
