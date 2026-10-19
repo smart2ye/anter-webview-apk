@@ -106,6 +106,7 @@ class NotificationService : Service() {
         // يفتح التطبيق عند الضغط على الإشعار
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            data = android.net.Uri.parse("https://anter-1.onrender.com/notifications")
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
