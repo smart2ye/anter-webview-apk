@@ -69,8 +69,13 @@ class NotificationService : Service() {
             var actor = "إشعار جديد"
             var text = "لديك إشعار جديد"
             if (latest != null) {
-                Regex("\"actor_name\"\\s*:\\s*\"([^\"]*)\"").find(latest)?.let { actor = it.groupValues[1] }
-                Regex("\"text\"\\s*:\\s*\"([^\"]*)\"").find(latest)?.let { text = it.groupValues[1] }
+                try {
+                    val obj = org.json.JSONObject(latest)
+                    actor = obj.optString("actor_name", "إشعار جديد")
+                    text  = obj.optString("text", "لديك إشعار جديد")
+                } catch (_: Exception) {
+                    // في حال فشل التحليل، نُبقي النص الافتراضي
+                }
             }
             showNotification(actor, text)
         }
