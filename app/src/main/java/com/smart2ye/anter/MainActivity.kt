@@ -84,6 +84,9 @@ class MainActivity : AppCompatActivity() {
         contactsBridge = ContactsBridge(this, webView)
         webView.addJavascriptInterface(contactsBridge, "AnterContacts")
 
+        // جسر المشاركة الأصلية (Android Share Sheet)
+        webView.addJavascriptInterface(ShareBridge(this), "AnterShare")
+
         requestBasePermissions()
         configureWebView()
 
