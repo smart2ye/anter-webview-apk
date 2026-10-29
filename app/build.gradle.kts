@@ -11,8 +11,8 @@ android {
         applicationId = "com.smart2ye.anter"
         minSdk = 24
         targetSdk = 34
-        versionCode = 14
-        versionName = "1.0.16"
+        versionCode = 15
+        versionName = "1.0.17"
     }
 
     signingConfigs {
@@ -25,6 +25,10 @@ android {
                 keyPassword = System.getenv("KEY_PASSWORD")
             }
         }
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
