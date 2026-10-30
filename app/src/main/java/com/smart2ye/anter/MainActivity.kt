@@ -87,6 +87,9 @@ class MainActivity : AppCompatActivity() {
         // جسر المشاركة الأصلية (Android Share Sheet)
         webView.addJavascriptInterface(ShareBridge(this), "AnterShare")
 
+        // جسر تنزيل الصور إلى Download/ANTER/
+        webView.addJavascriptInterface(DownloadBridge(this), "AnterDownload")
+
         requestBasePermissions()
         configureWebView()
 

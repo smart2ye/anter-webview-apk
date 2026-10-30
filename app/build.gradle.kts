@@ -11,8 +11,8 @@ android {
         applicationId = "com.smart2ye.anter"
         minSdk = 24
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.0.17"
+        versionCode = 16
+        versionName = "1.0.18"
     }
 
     signingConfigs {
